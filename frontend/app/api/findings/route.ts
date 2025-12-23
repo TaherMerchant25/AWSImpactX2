@@ -1,14 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+// Check if Supabase is configured
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+const supabase = supabaseUrl && supabaseKey 
+  ? createClient(supabaseUrl, supabaseKey)
+  : null;
 
 // GET - Fetch all findings
 export async function GET(request: NextRequest) {
   try {
+    if (!supabase) {
+      return NextResponse.json({ findings: [], warning: 'Supabase not configured' });
+    }
+
     const { searchParams } = new URL(request.url);
     const documentId = searchParams.get('document_id');
     const severity = searchParams.get('severity');
@@ -30,21 +37,28 @@ export async function GET(request: NextRequest) {
 
     const { data, error } = await query;
 
-    if (error) throw error;
+    if (error) {
+      console.warn('[Findings API] Query error:', error.message);
+      return NextResponse.json({ findings: [], error: error.message });
+    }
 
     return NextResponse.json({ findings: data || [] });
   } catch (error: any) {
-    console.error('Error fetching findings:', error);
-    return NextResponse.json(
-      { error: error.message || 'Failed to fetch findings' },
-      { status: 500 }
-    );
+    console.error('[Findings API] Error:', error);
+    return NextResponse.json({ findings: [], error: error.message });
   }
 }
 
 // POST - Create a new finding
 export async function POST(request: NextRequest) {
   try {
+    if (!supabase) {
+      return NextResponse.json({ 
+        finding: null, 
+        warning: 'Supabase not configured - finding not saved' 
+      });
+    }
+
     const body = await request.json();
     
     const { data, error } = await supabase
@@ -63,14 +77,14 @@ export async function POST(request: NextRequest) {
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      console.warn('[Findings API] Insert error:', error.message);
+      return NextResponse.json({ finding: null, warning: error.message });
+    }
 
     return NextResponse.json({ finding: data });
   } catch (error: any) {
-    console.error('Error creating finding:', error);
-    return NextResponse.json(
-      { error: error.message || 'Failed to create finding' },
-      { status: 500 }
-    );
+    console.error('[Findings API] Error:', error);
+    return NextResponse.json({ finding: null, error: error.message });
   }
 }

@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+// Check if Supabase is configured
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+const supabase = supabaseUrl && supabaseKey 
+  ? createClient(supabaseUrl, supabaseKey)
+  : null;
 
 // Gemini API configuration
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
@@ -586,8 +589,8 @@ export async function POST(request: NextRequest) {
       results.push(result);
       allFindings.push(...result.findings);
 
-      // Store execution record if document_id provided
-      if (document_id) {
+      // Store execution record if document_id provided and Supabase is configured
+      if (document_id && supabase) {
         try {
           await supabase.from('agent_executions').insert({
             document_id,
@@ -618,8 +621,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Update document status
-    if (document_id) {
+    // Update document status if Supabase is configured
+    if (document_id && supabase) {
       try {
         await supabase
           .from('documents')
