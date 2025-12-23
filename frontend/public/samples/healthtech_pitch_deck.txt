@@ -1,0 +1,67 @@
+HealthTech Startup Pitch Deck
+MediConnect AI - Series B Funding Round
+
+Slide 1: Company Overview
+MediConnect AI is revolutionizing healthcare delivery through AI-powered patient engagement.
+Our platform improves health outcomes for millions.
+Founded: 2021 | Headquarters: San Francisco, CA
+
+Slide 2: The Problem
+- 40% of patients miss follow-up appointments
+- Healthcare providers spend 30% of time on administrative tasks
+- Patient data is fragmented across systems
+
+Slide 3: Our Solution
+AI-powered patient engagement platform
+- Automated appointment reminders and scheduling
+- AI-powered diagnostics assistance
+- Patient health data aggregation
+Current active users: 50,000
+
+Slide 4: Market Opportunity
+Total Addressable Market: $50 billion
+Serviceable Market: $12 billion
+Target Market: $3 billion
+Growing at 25% CAGR
+
+Slide 5: Business Model
+SaaS subscription model
+- Basic: $500/month per clinic
+- Professional: $2,000/month
+- Enterprise: Custom pricing
+Current ARR: $500,000
+
+Slide 6: Traction
+- 150 healthcare provider clients
+- 95% customer retention rate
+- NPS Score: 72
+
+Slide 7: Growth Metrics
+User base: 75,000 patients on platform
+MoM growth: 15%
+Revenue growth: 200% YoY
+
+Slide 8: Financial Projections
+Year 1 (Current): $500K ARR
+Year 2: $5M ARR
+Year 3: $50M ARR
+
+Slide 9: Funding History
+Seed Round: $500,000 (2021)
+Series A: $2.6 million (2022)
+Total Raised: $2.5 million
+
+Slide 10: Team
+CEO: Dr. Sarah Chen - Former Google Health
+CTO: Michael Park - Ex-Epic Systems
+Team Size: 12 employees
+
+Slide 11: Use of Funds
+Series B Ask: $15 million
+- Product Development: 40%
+- Sales & Marketing: 35%
+- Operations: 25%
+
+Slide 12: Contact
+Email: invest@mediconnect.ai
+Website: www.mediconnect.ai
