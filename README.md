@@ -4,6 +4,11 @@
 
 > 🎉 **Now Running on Google Gemini 2.0 Flash** with **97% cost savings** vs AWS Bedrock!
 
+## Work Flow
+
+<img width="1752" height="989" alt="image" src="https://github.com/user-attachments/assets/bc262e22-4217-48ba-b659-07b962d477b9" />
+
+
 ## 🚀 Quick Start
 
 ### Prerequisites
