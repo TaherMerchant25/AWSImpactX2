@@ -137,14 +137,34 @@ export default function AnalyzePage() {
 
       setDocumentName(file.name);
 
-      // If it's a text file, try to read content
-      if (file.type === 'text/plain' || file.name.endsWith('.txt')) {
+      // Extract text from file
+      if (file.type === 'text/plain' || file.name.endsWith('.txt') || file.name.endsWith('.csv')) {
+        // Read text files directly
         const textContent = await file.text();
         setText(textContent);
+      } else if (file.type === 'application/pdf' || file.name.endsWith('.pdf')) {
+        // Try to extract text from PDF
+        const extractFormData = new FormData();
+        extractFormData.append('file', file);
+        
+        const extractResponse = await fetch('/api/extract', {
+          method: 'POST',
+          body: extractFormData
+        });
+        
+        const extractData = await extractResponse.json();
+        
+        if (extractData.success && extractData.text) {
+          setText(extractData.text);
+        } else {
+          // PDF extraction failed - prompt user to paste text
+          setText('');
+          setError(`PDF uploaded but text extraction limited. Please copy and paste the document text into the text area below for analysis.`);
+        }
       } else {
-        // For PDFs and other files, we'll need to extract text server-side
-        // For now, set a placeholder message
-        setText(`[File uploaded: ${file.name}]\n\nFile has been uploaded to storage. For PDF/DOC files, text extraction will be performed during analysis.`);
+        // Other file types - prompt user to paste text
+        setText('');
+        setError(`File uploaded. Please copy and paste the document text into the text area below for analysis.`);
       }
 
     } catch (err: any) {

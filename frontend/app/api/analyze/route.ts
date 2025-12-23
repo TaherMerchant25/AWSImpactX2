@@ -370,6 +370,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Text content is required' }, { status: 400 });
     }
 
+    // Check if text is just a placeholder or too short
+    if (text.includes('File has been uploaded to storage') || text.includes('text extraction will be performed')) {
+      return NextResponse.json({ 
+        error: 'No document text provided. Please paste the document content into the text area for analysis.',
+        hint: 'For PDF files, copy the text from your PDF viewer and paste it into the text area.'
+      }, { status: 400 });
+    }
+
+    if (text.trim().length < 100) {
+      return NextResponse.json({ 
+        error: 'Document text is too short for meaningful analysis. Please provide more content (at least 100 characters).'
+      }, { status: 400 });
+    }
+
     console.log(`[Analysis] Text length: ${text.length} chars`);
 
     // Check if this is one of the 3 hardcoded documents
