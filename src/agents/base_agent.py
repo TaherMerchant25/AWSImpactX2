@@ -5,12 +5,29 @@ Foundation for all specialized agents in the system
 from abc import ABC, abstractmethod
 from typing import Dict, Any, List
 from dataclasses import dataclass
-from aws_lambda_powertools import Logger, Tracer
-import boto3
 import json
+import os
+import google.generativeai as genai
 
-logger = Logger()
-tracer = Tracer()
+# Optional AWS tracing for local development
+try:
+    from aws_lambda_powertools import Logger, Tracer
+    logger = Logger()
+    tracer = Tracer()
+except:
+    # Fallback for local development
+    import logging
+    logger = logging.getLogger(__name__)
+    logging.basicConfig(level=logging.INFO)
+    
+    # Mock tracer
+    class MockTracer:
+        def capture_method(self, func):
+            return func
+    tracer = MockTracer()
+
+# Configure Gemini API
+genai.configure(api_key=os.environ.get('GEMINI_API_KEY'))
 
 
 @dataclass
@@ -31,8 +48,11 @@ class BaseAgent(ABC):
     def __init__(self, agent_name: str, mcp_hub):
         self.agent_name = agent_name
         self.mcp_hub = mcp_hub
-        self.bedrock_client = boto3.client('bedrock-runtime')
-        self.model_id = 'anthropic.claude-3-5-sonnet-20241022-v2:0'
+        self.model = genai.GenerativeModel('gemini-2.0-flash-exp')
+        self.generation_config = genai.GenerationConfig(
+            temperature=0.1,
+            max_output_tokens=4096
+        )
     
     @abstractmethod
     def analyze(self, document_data: Dict[str, Any], 
@@ -41,31 +61,35 @@ class BaseAgent(ABC):
         """Main analysis method - must be implemented by subclasses"""
         pass
     
+    @abstractmethod
+    def has_relevant_content(self, document_data: Dict[str, Any]) -> bool:
+        """
+        Check if document has relevant content for this agent.
+        Must be implemented by subclasses.
+        Returns True if agent should analyze, False to skip.
+        """
+        pass
+    
     @tracer.capture_method
     def invoke_llm(self, prompt: str, temperature: float = 0.1) -> str:
-        """Invoke Bedrock LLM with prompt"""
+        """Invoke Gemini LLM with prompt"""
         
         try:
-            response = self.bedrock_client.invoke_model(
-                modelId=self.model_id,
-                body=json.dumps({
-                    'anthropic_version': 'bedrock-2023-05-31',
-                    'max_tokens': 4096,
-                    'temperature': temperature,
-                    'messages': [
-                        {
-                            'role': 'user',
-                            'content': prompt
-                        }
-                    ]
-                })
+            # Update generation config with custom temperature
+            config = genai.GenerationConfig(
+                temperature=temperature,
+                max_output_tokens=4096
             )
             
-            response_body = json.loads(response['body'].read())
-            return response_body['content'][0]['text']
+            response = self.model.generate_content(
+                prompt,
+                generation_config=config
+            )
+            
+            return response.text
             
         except Exception as e:
-            logger.exception(f"Error invoking LLM for {self.agent_name}")
+            logger.exception(f"Error invoking Gemini for {self.agent_name}")
             raise
     
     def extract_text_content(self, document_data: Dict[str, Any]) -> str:

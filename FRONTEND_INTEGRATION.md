@@ -10,37 +10,77 @@ A complete, production-ready Next.js frontend has been integrated into your ASPE
 
 ```
 AWS/
-├── frontend/                          # 🆕 NEW FRONTEND APPLICATION
+├── frontend/                          # 🆕 FRONTEND APPLICATION
 │   ├── app/
 │   │   ├── layout.tsx                # Root layout with dark mode
 │   │   ├── page.tsx                  # Landing page (/)
 │   │   ├── globals.css               # Global styles
-│   │   └── dashboard/
-│   │       └── page.tsx              # Dashboard page (/dashboard)
+│   │   ├── dashboard/
+│   │   │   └── page.tsx              # Dashboard (/dashboard)
+│   │   ├── analyze/
+│   │   │   └── page.tsx              # Document Analysis (/analyze) 🆕
+│   │   ├── documents/
+│   │   │   └── page.tsx              # Documents List (/documents)
+│   │   ├── findings/
+│   │   │   └── page.tsx              # Findings List (/findings)
+│   │   └── api/
+│   │       ├── health/route.ts       # Health check endpoint
+│   │       ├── stats/route.ts        # Dashboard statistics
+│   │       ├── documents/route.ts    # Document CRUD
+│   │       ├── findings/route.ts     # Findings CRUD
+│   │       ├── executions/route.ts   # Agent execution logs
+│   │       ├── analyze/route.ts      # Run AI analysis
+│   │       └── upload/route.ts       # File upload to Supabase S3 🆕
 │   │
 │   ├── components/
 │   │   └── ui/
 │   │       ├── button.tsx            # shadcn/ui Button
-│   │       ├── saas-template.tsx     # Original template (reference)
-│   │       └── aspera-landing.tsx    # ASPERA landing page
+│   │       ├── hero-landing-page.tsx # Landing page with video
+│   │       └── navbar.tsx            # Navigation component
 │   │
 │   ├── lib/
 │   │   └── utils.ts                  # Utility functions
 │   │
-│   ├── package.json                  # Dependencies
-│   ├── tsconfig.json                 # TypeScript config
-│   ├── tailwind.config.ts            # Tailwind config
-│   ├── next.config.js                # Next.js config
-│   ├── .gitignore                    # Git ignore
-│   ├── README.md                     # Full documentation
-│   ├── SETUP.md                      # Complete setup guide
-│   └── QUICKSTART.md                 # Quick start guide
+│   ├── package.json
+│   ├── tsconfig.json
+│   ├── tailwind.config.ts
+│   ├── next.config.js
+│   └── .env.local                    # Environment variables
 │
-└── src/                               # Your existing backend
+├── infrastructure/
+│   ├── supabase-schema.sql           # Database schema
+│   └── supabase-storage.sql          # Storage bucket setup 🆕
+│
+└── src/                               # Backend (Python)
     ├── agents/
     ├── ingestion/
     ├── knowledge/
     └── ...
+```
+
+---
+
+## 🗄️ Supabase S3 Storage (AWSIMPACTX Bucket)
+
+### Bucket Configuration
+- **Bucket Name**: `AWSIMPACTX`
+- **S3 Endpoint**: `https://wdbxvhjibcmwgpggiwgw.storage.supabase.co/storage/v1/s3`
+- **Max File Size**: 10MB
+- **Allowed Types**: PDF, TXT, DOC, DOCX, CSV
+
+### Setup Instructions
+1. Go to Supabase Dashboard → Storage
+2. Create a new bucket named `AWSIMPACTX`
+3. Set bucket to **Public** (or run the SQL script)
+4. Run `infrastructure/supabase-storage.sql` for policies
+
+### Upload Flow
+```
+User → Drag & Drop / Click Upload → /api/upload → Supabase Storage
+                                         ↓
+                               Creates document record
+                                         ↓
+                               Returns file URL + document_id
 ```
 
 ---

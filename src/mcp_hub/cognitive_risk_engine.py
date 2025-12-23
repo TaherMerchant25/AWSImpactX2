@@ -7,16 +7,30 @@ import os
 from typing import Dict, Any, List, Optional
 from dataclasses import dataclass
 from enum import Enum
-from aws_lambda_powertools import Logger, Tracer
-import boto3
 from datetime import datetime
+import google.generativeai as genai
 
-logger = Logger()
-tracer = Tracer()
+# Optional AWS tracing for local development
+try:
+    from aws_lambda_powertools import Logger, Tracer
+    logger = Logger()
+    tracer = Tracer()
+except:
+    import logging
+    logger = logging.getLogger(__name__)
+    logging.basicConfig(level=logging.INFO)
+    
+    class MockTracer:
+        def capture_method(self, func):
+            return func
+    tracer = MockTracer()
+
+# Configure Gemini API
+genai.configure(api_key=os.environ.get('GEMINI_API_KEY'))
 
 
 class AgentType(Enum):
-    """Types of agents in the system"""
+    """Enum for agent types"""
     CONSISTENCY = "consistency"
     GREENWASHING = "greenwashing"
     COMPLIANCE = "compliance"
@@ -52,9 +66,11 @@ class CognitiveRiskEngine:
     """
     
     def __init__(self, mcp_hub):
-        self.bedrock_client = boto3.client('bedrock-runtime')
-        self.model_id = os.environ.get('BEDROCK_MODEL_ID', 
-                                       'anthropic.claude-3-5-sonnet-20241022-v2:0')
+        self.model = genai.GenerativeModel('gemini-2.0-flash-exp')
+        self.generation_config = genai.GenerationConfig(
+            temperature=0.1,
+            max_output_tokens=4096
+        )
         self.mcp_hub = mcp_hub
         self.agents: Dict[AgentType, Any] = {}
     
@@ -144,7 +160,7 @@ class CognitiveRiskEngine:
     
     def _execute_tasks(self, tasks: List[AgentTask], 
                       context: Dict[str, Any]) -> Dict[AgentType, AgentResponse]:
-        """Execute agent tasks in order"""
+        """Execute agent tasks in order, skipping agents without relevant content"""
         
         results = {}
         
@@ -158,9 +174,14 @@ class CognitiveRiskEngine:
             
             # Execute agent
             if task.agent_type in self.agents:
-                logger.info(f"Executing agent: {task.agent_type.value}")
-                
                 agent = self.agents[task.agent_type]
+                
+                # Check if document has relevant content for this agent
+                if not agent.has_relevant_content(task.input_data):
+                    logger.info(f"Skipping agent {task.agent_type.value} - no relevant content found")
+                    continue
+                
+                logger.info(f"Executing agent: {task.agent_type.value}")
                 response = agent.analyze(task.input_data, context, previous_results=results)
                 results[task.agent_type] = response
             else:
@@ -179,25 +200,14 @@ class CognitiveRiskEngine:
         # Prepare synthesis prompt
         synthesis_prompt = self._build_synthesis_prompt(results, document_data)
         
-        # Use Bedrock for synthesis
+        # Use Gemini for synthesis
         try:
-            response = self.bedrock_client.invoke_model(
-                modelId=self.model_id,
-                body=json.dumps({
-                    'anthropic_version': 'bedrock-2023-05-31',
-                    'max_tokens': 4096,
-                    'temperature': 0.1,
-                    'messages': [
-                        {
-                            'role': 'user',
-                            'content': synthesis_prompt
-                        }
-                    ]
-                })
+            response = self.model.generate_content(
+                synthesis_prompt,
+                generation_config=self.generation_config
             )
             
-            response_body = json.loads(response['body'].read())
-            synthesis_text = response_body['content'][0]['text']
+            synthesis_text = response.text
             
             # Parse synthesis response
             synthesis = self._parse_synthesis(synthesis_text)

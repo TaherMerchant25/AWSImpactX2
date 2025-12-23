@@ -7,7 +7,8 @@ import os
 from typing import Dict, Any
 from aws_lambda_powertools import Logger, Tracer
 from aws_lambda_powertools.utilities.typing import LambdaContext
-import boto3
+from datetime import datetime
+from src.utils.supabase_client import get_db
 
 # Import components
 from src.ingestion.document_processor import DocumentProcessor
@@ -23,20 +24,11 @@ from src.agents.risk_analysis_agent import RiskAnalysisAgent
 
 logger = Logger()
 tracer = Tracer()
-
-s3_client = boto3.client('s3')
-dynamodb = boto3.resource('dynamodb')
-
-
-class PipelineOrchestrator:
-    """
-    Orchestrates the complete ASPERA pipeline
-    """
-    
-    def __init__(self):
-        # Initialize MCP Hub
         self.mcp_hub = MCPHub()
         self.context_manager = MCPContextManager()
+        
+        # Initialize Supabase client
+        self.supabase = get_db()
         
         # Initialize components
         self.vector_store = VectorStoreManager()
@@ -57,8 +49,6 @@ class PipelineOrchestrator:
         self.cognitive_engine.register_agent(AgentType.COMPLIANCE, self.compliance_agent)
         self.cognitive_engine.register_agent(AgentType.MATH, self.math_agent)
         self.cognitive_engine.register_agent(AgentType.RISK_ANALYSIS, self.risk_agent)
-        
-        self.results_table = os.environ.get('RESULTS_TABLE', 'aspera-results')
     
     @tracer.capture_method
     def process_document(self, bucket: str, key: str, 
@@ -174,23 +164,59 @@ class PipelineOrchestrator:
             'status': 'COMPLETED'
         }
     
-    def _save_results(self, context_id: str, report: Dict[str, Any]):
-        """Save results to DynamoDB"""
+    async def _save_results(self, context_id: str, report: Dict[str, Any]):
+        """Save results to Supabase"""
         
         try:
-            table = dynamodb.Table(self.results_table)
-            table.put_item(
-                Item={
-                    'document_id': context_id,
-                    'timestamp': report.get('timestamp'),
-                    'report': json.dumps(report),
-                    'decision': report['executive_summary']['decision'],
-                    'confidence_score': report['executive_summary']['confidence_score']
-                }
-            )
-            logger.info(f"Saved results for {context_id}")
+            # Save to documents table
+            document_data = {
+                'document_id': context_id,
+                'filename': report.get('document_id', context_id),
+                'upload_date': datetime.utcnow().isoformat(),
+                'status': report.get('status', 'COMPLETED'),
+                'analysis_result': report.get('executive_summary', {})
+            }
+            await self.supabase.insert_document(document_data)
+            
+            # Save findings
+            agent_findings = report.get('agent_findings', {})
+            for agent_type, findings_data in agent_findings.items():
+                if findings_data.get('critical_findings', 0) > 0:
+                    finding_data = {
+                        'document_id': context_id,
+                        'agent_type': agent_type,
+                        'severity': 'CRITICAL',
+                        'category': 'risk',
+                        'title': f'{agent_type} Critical Findings',
+                        'description': findings_data.get('reasoning', ''),
+                        'confidence_score': report['executive_summary'].get('confidence_score', 0.0)
+                    }
+                    await self.supabase.insert_finding(finding_data)
+            
+            # Save agent execution
+            execution_data = {
+                'document_id': context_id,
+                'agent_name': 'orchestrator',
+                'status': 'completed',
+                'execution_time': 0.0,  # TODO: Calculate actual time
+                'findings_count': sum(f.get('total_findings', 0) for f in agent_findings.values()),
+                'confidence_score': report['executive_summary'].get('confidence_score', 0.0)
+            }
+            await self.supabase.insert_execution(execution_data)
+            
+            logger.info(f"Saved results to Supabase for {context_id}")
         except Exception as e:
-            logger.error(f"Error saving results: {e}")
+            logger.error(f"Error saving results to Supabase: {e}")
+            # Log to system_logs table
+            try:
+                await self.supabase.insert_log({
+                    'log_level': 'ERROR',
+                    'component': 'pipeline_orchestrator',
+                    'message': f'Failed to save results: {str(e)}',
+                    'metadata': {'context_id': context_id}
+                })
+            except:
+                pass
 
 
 # Lambda Handlers for Step Functions

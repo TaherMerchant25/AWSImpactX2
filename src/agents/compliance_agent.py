@@ -59,6 +59,23 @@ class ComplianceCheckAgent(BaseAgent):
     def __init__(self, mcp_hub):
         super().__init__("Compliance Check Agent", mcp_hub)
     
+    def has_relevant_content(self, document_data: Dict[str, Any]) -> bool:
+        """Check if document has compliance-related content"""
+        text_content = self.extract_text_content(document_data).lower()
+        
+        # Check for any regulatory/compliance indicators
+        compliance_indicators = [
+            'sec', 'securities', 'compliance', 'regulatory', 'regulation',
+            'gdpr', 'data protection', 'privacy', 'sox', 'sarbanes',
+            'basel', 'capital adequacy', 'audit', 'financial reporting',
+            'tcfd', 'climate disclosure', 'risk factors', 'material events'
+        ]
+        
+        has_compliance_content = any(indicator in text_content for indicator in compliance_indicators)
+        
+        # Only run if compliance-related content is present
+        return has_compliance_content
+    
     @tracer.capture_method
     def analyze(self, document_data: Dict[str, Any], 
                context: Dict[str, Any],
